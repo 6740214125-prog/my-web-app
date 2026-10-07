@@ -1,6 +1,5 @@
 <?php
 // ดึงค่า Environment Variables จากระบบ
-// ฟังก์ชันดึงค่า Environment Variables ให้รองรับ FrankenPHP / Railway
 function getEnvVar($key, $default = '') {
     if (!empty($_ENV[$key])) return $_ENV[$key];
     if (!empty($_SERVER[$key])) return $_SERVER[$key];
@@ -13,7 +12,50 @@ $port = getEnvVar('MYSQLPORT', '3306');
 $user = getEnvVar('MYSQLUSER', 'root');
 $pass = getEnvVar('MYSQLPASSWORD', '');
 $dbname = getEnvVar('MYSQLDATABASE', 'railway');
-$server_name = getEnvVar('SERVER_NAME', 'UNKNOWN SERVER');
+$server_name = getEnvVar('SERVER_NAME', '');
+
+// หากไม่ได้ตั้งค่า SERVER_NAME ใน Variables ให้ตรวจจับจาก URL โดเมนอัตโนมัติ
+if (empty($server_name)) {
+    $httpHost = isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : '';
+    if (stripos($httpHost, 'apache') !== false) {
+        $server_name = 'APACHE';
+    } elseif (stripos($httpHost, 'nginx') !== false) {
+        $server_name = 'NGINX';
+    } else {
+        $server_name = 'WEB SERVER';
+    }
+}
+
+// เช็กว่าเป็น Apache หรือไม่ เพื่อสลับชุดสี (Theme)
+$isApache = (stripos($server_name, 'apache') !== false);
+
+// กำหนดการแต่งสีตามธีม
+if ($isApache) {
+    // ธีมสีแดง/ส้ม สำหรับ APACHE
+    $theme = array(
+        'bg_body'      => '#fff5f5',
+        'card_border'  => '#feb2b2',
+        'header_color' => '#c53030',
+        'badge_bg'     => '#e53e3e',
+        'button_bg'    => '#dd6b20',
+        'button_hover' => '#c05621',
+        'th_bg'        => '#fed7d7',
+        'th_text'      => '#9b2c2c'
+    );
+} else {
+    // ธีมสีฟ้า/เขียว สำหรับ NGINX
+    $theme = array(
+        'bg_body'      => '#f4f6f9',
+        'card_border'  => '#bee3f8',
+        'header_color' => '#2b6cb0',
+        'badge_bg'     => '#3182ce',
+        'button_bg'    => '#38a169',
+        'button_hover' => '#2f855a',
+        'th_bg'        => '#ebf8ff',
+        'th_text'      => '#2c5282'
+    );
+}
+
 // เชื่อมต่อฐานข้อมูล MySQL
 $conn = new mysqli($host, $user, $pass, $dbname, (int)$port);
 
@@ -66,23 +108,97 @@ if (!$result) {
     <meta charset="UTF-8">
     <title>Contact Form - <?php echo htmlspecialchars($server_name); ?></title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f6f9; margin: 40px; }
-        .container { max-width: 700px; background: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin: 0 auto; }
-        h2 { color: #333; margin-top: 0; }
-        .badge { background: #007bff; color: white; padding: 4px 8px; border-radius: 4px; font-size: 14px; }
-        .db-status { background: #e9ecef; padding: 10px; border-radius: 4px; font-size: 13px; margin-bottom: 20px; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background-color: <?php echo $theme['bg_body']; ?>; 
+            margin: 40px; 
+            transition: background-color 0.3s ease;
+        }
+        .container { 
+            max-width: 700px; 
+            background: #fff; 
+            padding: 25px; 
+            border-radius: 12px; 
+            border: 2px solid <?php echo $theme['card_border']; ?>;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); 
+            margin: 0 auto; 
+        }
+        h2 { 
+            color: <?php echo $theme['header_color']; ?>; 
+            margin-top: 0; 
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .badge { 
+            background: <?php echo $theme['badge_bg']; ?>; 
+            color: white; 
+            padding: 6px 12px; 
+            border-radius: 20px; 
+            font-size: 14px; 
+            font-weight: 600;
+        }
+        .db-status { 
+            background: #f7fafc; 
+            border-left: 4px solid <?php echo $theme['badge_bg']; ?>;
+            padding: 12px; 
+            border-radius: 4px; 
+            font-size: 13px; 
+            margin-bottom: 20px; 
+            color: #4a5568;
+        }
         .form-group { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 5px; font-weight: bold; }
-        input[type="text"], input[type="email"] { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
-        button { background: #28a745; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; font-size: 16px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; color: #2d3748; }
+        input[type="text"], input[type="email"] { 
+            width: 100%; 
+            padding: 10px; 
+            box-sizing: border-box; 
+            border: 1px solid #cbd5e0; 
+            border-radius: 6px; 
+            font-size: 14px;
+        }
+        input[type="text"]:focus, input[type="email"]:focus {
+            outline: none;
+            border-color: <?php echo $theme['badge_bg']; ?>;
+            box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.2);
+        }
+        button { 
+            background: <?php echo $theme['button_bg']; ?>; 
+            color: white; 
+            border: none; 
+            padding: 12px 20px; 
+            border-radius: 6px; 
+            cursor: pointer; 
+            font-size: 16px; 
+            font-weight: bold;
+            transition: background 0.2s;
+            width: 100%;
+        }
+        button:hover { 
+            background: <?php echo $theme['button_hover']; ?>; 
+        }
+        h3 {
+            color: <?php echo $theme['header_color']; ?>;
+            border-bottom: 2px solid <?php echo $theme['card_border']; ?>;
+            padding-bottom: 6px;
+            margin-top: 25px;
+        }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th, td { border: 1px solid #dee2e6; padding: 10px; text-align: left; }
-        th { background-color: #f8f9fa; }
+        th, td { border: 1px solid #e2e8f0; padding: 10px; text-align: left; }
+        th { 
+            background-color: <?php echo $theme['th_bg']; ?>; 
+            color: <?php echo $theme['th_text']; ?>;
+            font-weight: bold;
+        }
+        tr:nth-child(even) { background-color: #f7fafc; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h2>Contact Form <span class="badge">Server: <?php echo htmlspecialchars($server_name); ?></span></h2>
+        <h2>
+            Contact Form 
+            <span class="badge">Server: <?php echo htmlspecialchars($server_name); ?></span>
+        </h2>
         <div class="db-status">
             <strong>Database Status:</strong> เชื่อมต่อ MySQL สำเร็จ (Host: <?php echo $host; ?>, Port: <?php echo $port; ?>, DB: <?php echo $dbname; ?>, Table: users)
         </div>
