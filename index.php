@@ -1,12 +1,19 @@
 <?php
 // ดึงค่า Environment Variables จากระบบ
-$host = getenv('MYSQLHOST') ? getenv('MYSQLHOST') : 'mysql.railway.internal';
-$port = getenv('MYSQLPORT') ? getenv('MYSQLPORT') : '3306';
-$user = getenv('MYSQLUSER') ? getenv('MYSQLUSER') : 'root';
-$pass = getenv('MYSQLPASSWORD') ? getenv('MYSQLPASSWORD') : '';
-$dbname = getenv('MYSQLDATABASE') ? getenv('MYSQLDATABASE') : 'railway';
-$server_name = getenv('SERVER_NAME') ? getenv('SERVER_NAME') : 'UNKNOWN SERVER';
+// ฟังก์ชันดึงค่า Environment Variables ให้รองรับ FrankenPHP / Railway
+function getEnvVar($key, $default = '') {
+    if (!empty($_ENV[$key])) return $_ENV[$key];
+    if (!empty($_SERVER[$key])) return $_SERVER[$key];
+    $val = getenv($key);
+    return ($val !== false && $val !== '') ? $val : $default;
+}
 
+$host = getEnvVar('MYSQLHOST', 'mysql.railway.internal');
+$port = getEnvVar('MYSQLPORT', '3306');
+$user = getEnvVar('MYSQLUSER', 'root');
+$pass = getEnvVar('MYSQLPASSWORD', '');
+$dbname = getEnvVar('MYSQLDATABASE', 'railway');
+$server_name = getEnvVar('SERVER_NAME', 'UNKNOWN SERVER');
 // เชื่อมต่อฐานข้อมูล MySQL
 $conn = new mysqli($host, $user, $pass, $dbname, (int)$port);
 
