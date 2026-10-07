@@ -59,21 +59,6 @@ if ($isApache) {
 // เชื่อมต่อฐานข้อมูล MySQL
 $conn = new mysqli($host, $user, $pass, $dbname, (int)$port);
 
-if ($conn->connect_error) {
-    die("เชื่อมต่อฐานข้อมูลล้มเหลว: " . $conn->connect_error);
-}
-
-$conn->set_charset('utf8mb4');
-
-// สร้างตารางหากยังไม่มี
-$conn->query("CREATE TABLE IF NOT EXISTS users (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    email VARCHAR(255) NOT NULL,
-    phone VARCHAR(50) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-)") or die("สร้างตาราง users ล้มเหลว: " . $conn->error);
-
 // บันทึกข้อมูลเมื่อ Submit Form
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $name = isset($_POST['name']) ? trim($_POST['name']) : '';
@@ -132,17 +117,9 @@ if (!$result) {
         }
         .badge { 
             background: <?php echo $theme['badge_bg']; ?>; 
-            color: white; 
-            padding: 6px 12px; 
-            border-radius: 20px; 
-            font-size: 14px; 
-            font-weight: 600;
-        }
-        .db-status { 
-            background: #f7fafc; 
-            border-left: 4px solid <?php echo $theme['badge_bg']; ?>;
-            padding: 12px; 
-            border-radius: 4px; 
+           <div class="db-status">
+    <strong>Database Status:</strong> เชื่อมต่อสำเร็จ
+</div>
             font-size: 13px; 
             margin-bottom: 20px; 
             color: #4a5568;
