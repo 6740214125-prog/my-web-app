@@ -14,7 +14,7 @@ $pass = getEnvVar('MYSQLPASSWORD', '');
 $dbname = getEnvVar('MYSQLDATABASE', 'railway');
 $server_name = getEnvVar('SERVER_NAME', '');
 
-// หากไม่ได้ตั้งค่า SERVER_NAME ใน Variables ให้ตรวจจับจาก URL โดเมนอัตโนมัติ
+// ตรวจจับชื่อ Server จาก URL โดเมนอัตโนมัติหากไม่ได้ตั้งค่าตัวแปร
 if (empty($server_name)) {
     $httpHost = isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : '';
     if (stripos($httpHost, 'apache') !== false) {
@@ -26,10 +26,10 @@ if (empty($server_name)) {
     }
 }
 
-// เช็กว่าเป็น Apache หรือไม่ เพื่อสลับชุดสี (Theme)
+// เช็กว่ามาจาก Apache หรือไม่
 $isApache = (stripos($server_name, 'apache') !== false);
 
-// กำหนดการแต่งสีตามธีม
+// กำหนดธีมสี
 if ($isApache) {
     // ธีมสีแดง/ส้ม สำหรับ APACHE
     $theme = array(
@@ -59,6 +59,21 @@ if ($isApache) {
 // เชื่อมต่อฐานข้อมูล MySQL
 $conn = new mysqli($host, $user, $pass, $dbname, (int)$port);
 
+if ($conn->connect_error) {
+    die("เชื่อมต่อฐานข้อมูลล้มเหลว: " . $conn->connect_error);
+}
+
+$conn->set_charset('utf8mb4');
+
+// สร้างตารางหากยังไม่มี
+$conn->query("CREATE TABLE IF NOT EXISTS users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    phone VARCHAR(50) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)") or die("สร้างตาราง users ล้มเหลว: " . $conn->error);
+
 // บันทึกข้อมูลเมื่อ Submit Form
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $name = isset($_POST['name']) ? trim($_POST['name']) : '';
@@ -67,15 +82,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (!empty($name) && !empty($email) && !empty($phone)) {
         $stmt = $conn->prepare("INSERT INTO users (name, email, phone) VALUES (?, ?, ?)");
-        if (!$stmt) {
-            die("เตรียมคำสั่ง INSERT ล้มเหลว: " . $conn->error);
+        if ($stmt) {
+            $stmt->bind_param("sss", $name, $email, $phone);
+            $stmt->execute();
+            $stmt->close();
         }
-
-        $stmt->bind_param("sss", $name, $email, $phone);
-        if (!$stmt->execute()) {
-            die("เพิ่มข้อมูลล้มเหลว: " . $stmt->error);
-        }
-        $stmt->close();
         header("Location: " . $_SERVER['PHP_SELF']);
         exit();
     }
@@ -83,9 +94,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // ดึงข้อมูลผู้ใช้ทั้งหมดมาแสดงผล
 $result = $conn->query("SELECT id, name, email, phone FROM users ORDER BY id DESC");
-if (!$result) {
-    die("ดึงข้อมูลล้มเหลว: " . $conn->error);
-}
 ?>
 <!DOCTYPE html>
 <html lang="th">
@@ -97,7 +105,6 @@ if (!$result) {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
             background-color: <?php echo $theme['bg_body']; ?>; 
             margin: 40px; 
-            transition: background-color 0.3s ease;
         }
         .container { 
             max-width: 700px; 
@@ -108,19 +115,34 @@ if (!$result) {
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); 
             margin: 0 auto; 
         }
-        h2 { 
-            color: <?php echo $theme['header_color']; ?>; 
-            margin-top: 0; 
+        .header-title {
             display: flex;
             align-items: center;
             justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        h2 { 
+            color: <?php echo $theme['header_color']; ?>; 
+            margin: 0;
+            font-size: 24px;
         }
         .badge { 
             background: <?php echo $theme['badge_bg']; ?>; 
-           <div class="db-status">
-    <strong>Database Status:</strong> เชื่อมต่อสำเร็จ
-</div>
-            font-size: 13px; 
+            color: white; 
+            padding: 6px 14px; 
+            border-radius: 20px; 
+            font-size: 14px; 
+            font-weight: 600;
+            display: inline-block;
+        }
+        .db-status { 
+            background: #f7fafc; 
+            border-left: 4px solid <?php echo $theme['badge_bg']; ?>;
+            padding: 12px; 
+            border-radius: 4px; 
+            font-size: 14px; 
             margin-bottom: 20px; 
             color: #4a5568;
         }
@@ -134,11 +156,6 @@ if (!$result) {
             border-radius: 6px; 
             font-size: 14px;
         }
-        input[type="text"]:focus, input[type="email"]:focus {
-            outline: none;
-            border-color: <?php echo $theme['badge_bg']; ?>;
-            box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.2);
-        }
         button { 
             background: <?php echo $theme['button_bg']; ?>; 
             color: white; 
@@ -148,8 +165,8 @@ if (!$result) {
             cursor: pointer; 
             font-size: 16px; 
             font-weight: bold;
-            transition: background 0.2s;
             width: 100%;
+            transition: background 0.2s;
         }
         button:hover { 
             background: <?php echo $theme['button_hover']; ?>; 
@@ -172,12 +189,13 @@ if (!$result) {
 </head>
 <body>
     <div class="container">
-        <h2>
-            Contact Form 
+        <div class="header-title">
+            <h2>Contact Form</h2>
             <span class="badge">Server: <?php echo htmlspecialchars($server_name); ?></span>
-        </h2>
+        </div>
+
         <div class="db-status">
-            <strong>Database Status:</strong> เชื่อมต่อ MySQL สำเร็จ (Host: <?php echo $host; ?>, Port: <?php echo $port; ?>, DB: <?php echo $dbname; ?>, Table: users)
+            <strong>Database Status:</strong> เชื่อมต่อสำเร็จ
         </div>
 
         <h3>เพิ่มข้อมูลผู้ใช้</h3>
