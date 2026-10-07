@@ -1,11 +1,11 @@
 <?php
 // ดึงค่า Environment Variables จากระบบ
-$host = getenv('MYSQLHOST') ?: 'mysql.railway.internal';
-$port = getenv('MYSQLPORT') ?: '3306';
-$user = getenv('MYSQLUSER') ?: 'root';
-$pass = getenv('MYSQLPASSWORD') ?: '';
-$dbname = getenv('MYSQLDATABASE') ?: 'railway';
-$server_name = getenv('SERVER_NAME') ?: 'UNKNOWN SERVER';
+$host = getenv('MYSQLHOST') ? getenv('MYSQLHOST') : 'mysql.railway.internal';
+$port = getenv('MYSQLPORT') ? getenv('MYSQLPORT') : '3306';
+$user = getenv('MYSQLUSER') ? getenv('MYSQLUSER') : 'root';
+$pass = getenv('MYSQLPASSWORD') ? getenv('MYSQLPASSWORD') : '';
+$dbname = getenv('MYSQLDATABASE') ? getenv('MYSQLDATABASE') : 'railway';
+$server_name = getenv('SERVER_NAME') ? getenv('SERVER_NAME') : 'UNKNOWN SERVER';
 
 // เชื่อมต่อฐานข้อมูล MySQL
 $conn = new mysqli($host, $user, $pass, $dbname, (int)$port);
@@ -14,16 +14,33 @@ if ($conn->connect_error) {
     die("เชื่อมต่อฐานข้อมูลล้มเหลว: " . $conn->connect_error);
 }
 
+$conn->set_charset('utf8mb4');
+
+// สร้างตารางหากยังไม่มี
+$conn->query("CREATE TABLE IF NOT EXISTS users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    phone VARCHAR(50) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)") or die("สร้างตาราง users ล้มเหลว: " . $conn->error);
+
 // บันทึกข้อมูลเมื่อ Submit Form
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $name = $_POST['name'] ?? '';
-    $email = $_POST['email'] ?? '';
-    $phone = $_POST['phone'] ?? '';
+    $name = isset($_POST['name']) ? trim($_POST['name']) : '';
+    $email = isset($_POST['email']) ? trim($_POST['email']) : '';
+    $phone = isset($_POST['phone']) ? trim($_POST['phone']) : '';
 
     if (!empty($name) && !empty($email) && !empty($phone)) {
         $stmt = $conn->prepare("INSERT INTO users (name, email, phone) VALUES (?, ?, ?)");
+        if (!$stmt) {
+            die("เตรียมคำสั่ง INSERT ล้มเหลว: " . $conn->error);
+        }
+
         $stmt->bind_param("sss", $name, $email, $phone);
-        $stmt->execute();
+        if (!$stmt->execute()) {
+            die("เพิ่มข้อมูลล้มเหลว: " . $stmt->error);
+        }
         $stmt->close();
         header("Location: " . $_SERVER['PHP_SELF']);
         exit();
@@ -32,6 +49,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // ดึงข้อมูลผู้ใช้ทั้งหมดมาแสดงผล
 $result = $conn->query("SELECT id, name, email, phone FROM users ORDER BY id DESC");
+if (!$result) {
+    die("ดึงข้อมูลล้มเหลว: " . $conn->error);
+}
 ?>
 <!DOCTYPE html>
 <html lang="th">
